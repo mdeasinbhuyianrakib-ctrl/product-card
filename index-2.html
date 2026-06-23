@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Card Maker">
+<meta name="theme-color" content="#1a1a2e">
+<link rel="manifest" href="manifest.json">
+<title>Product Card Maker</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: #1a1a2e;
+    min-height: 100vh;
+    color: white;
+    padding: 0;
+  }
+  .topbar {
+    background: #16213e;
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+  }
+  .topbar-icon { font-size: 24px; }
+  .topbar h1 { font-size: 18px; font-weight: 700; color: #fff; }
+  .topbar small { font-size: 11px; color: #888; display: block; }
+  .settings-btn {
+    margin-left: auto;
+    background: #0f3460;
+    border: none;
+    border-radius: 10px;
+    color: #aaa;
+    font-size: 20px;
+    width: 38px; height: 38px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .content { padding: 16px; }
+  .step-label {
+    font-size: 12px;
+    font-weight: 700;
+    color: #e94560;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    margin-top: 18px;
+  }
+  .upload-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 4px;
+  }
+  .upload-box {
+    background: #16213e;
+    border: 2px dashed #333;
+    border-radius: 16px;
+    aspect-ratio: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+  .upload-box.has-image { border-style: solid; border-color: #e94560; }
+  .upload-box input { display: none; }
+  .upload-box img {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    position: absolute; top: 0; left: 0;
+    border-radius: 14px;
+  }
+  .upload-overlay {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    background: rgba(0,0,0,0.6);
+    padding: 6px;
+    text-align: center;
+    font-size: 11px;
+    color: #ddd;
+    display: none;
+  }
+  .upload-box.has-image .upload-overlay { display: block; }
+  .upload-placeholder { text-align: center; padding: 10px; z-index: 1; }
+  .upload-placeholder .icon { font-size: 32px; margin-bottom: 6px; }
+  .upload-placeholder .title { font-size: 13px; font-weight: 600; color: #ccc; }
+  .upload-placeholder .sub { font-size: 11px; color: #666; margin-top: 4px; }
+
+  /* AI SCAN BUTTON */
+  .btn-ai-scan {
+    width: 100%;
+    background: linear-gradient(135deg, #7c3aed, #5b21b6);
+    border: none;
+    border-radius: 14px;
+    color: white;
+    font-size: 15px;
+    font-weight: 700;
+    padding: 14px;
+    cursor: pointer;
+    margin-top: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    box-shadow: 0 4px 16px rgba(124,58,237,0.4);
+    transition: transform 0.1s;
+  }
+  .btn-ai-scan:active { transform: scale(0.98); }
+  .btn-ai-scan:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .ai-status {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 10px;
+    color: #a78bfa;
+    font-size: 13px;
+    margin-top: 6px;
+  }
+  .ai-status.show { display: flex; }
+  .spinner {
+    width: 18px; height: 18px;
+    border: 3px solid #3a1c71;
+    border-top-color: #a78bfa;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    flex-shrink: 0;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* FIELDS */
+  .field-group {
+    background: #16213e;
+    border-radius: 16px;
+    padding: 4px 0;
+    overflow: hidden;
+  }
+  .field-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0 16px;
+    border-bottom: 1px solid #1e2d50;
+  }
+  .field-item:last-child { border-bottom: none; }
+  .field-icon { font-size: 18px; width: 24px; text-align: center; flex-shrink: 0; }
+  .field-item input {
+    flex: 1;
+    background: none;
+    border: none;
+    color: white;
+    font-size: 15px;
+    padding: 14px 0;
+    outline: none;
+    direction: ltr;
+  }
+  .field-item input::placeholder { color: #555; }
+  .field-item input.ai-filled { color: #a78bfa; }
+
+  .btn-generate {
+    width: 100%;
+    background: linear-gradient(135deg, #e94560, #c73652);
+    border: none;
+    border-radius: 16px;
+    color: white;
+    font-size: 17px;
+    font-weight: 700;
+    padding: 16px;
+    cursor: pointer;
+    margin-top: 20px;
+    box-shadow: 0 4px 20px rgba(233,69,96,0.4);
+    transition: transform 0.1s;
+  }
+  .btn-generate:active { transform: scale(0.98); }
+
+  .divider {
+    text-align: center;
+    color: #444;
+    font-size: 12px;
+    margin: 20px 0 16px;
+    position: relative;
+  }
+  .divider::before, .divider::after {
+    content: '';
+    position: absolute;
+    top: 50%; width: 40%; height: 1px;
+    background: #2a2a4a;
+  }
+  .divider::before { left: 0; }
+  .divider::after { right: 0; }
+
+  #card {
+    background: #111;
+    border-radius: 20px;
+    overflow: hidden;
+    display: none;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+  }
+  .card-images {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    padding: 6px 6px 0;
+  }
+  .card-images img {
+    width: 100%;
+    aspect-ratio: 1;
+    object-fit: cover;
+    border-radius: 14px;
+    display: block;
+  }
+  .card-info {
+    margin: 6px;
+    background: #1a1a1a;
+    border-radius: 14px;
+    padding: 16px 18px;
+  }
+  .card-info p {
+    font-size: 17px;
+    font-weight: 600;
+    color: #fff;
+    line-height: 1.75;
+    white-space: pre-line;
+    direction: ltr;
+  }
+
+  .btn-whatsapp {
+    width: 100%;
+    background: linear-gradient(135deg, #25D366, #1da851);
+    border: none;
+    border-radius: 16px;
+    color: white;
+    font-size: 17px;
+    font-weight: 700;
+    padding: 16px;
+    cursor: pointer;
+    margin-top: 14px;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    box-shadow: 0 4px 20px rgba(37,211,102,0.35);
+    transition: transform 0.1s;
+    margin-bottom: 30px;
+  }
+  .btn-whatsapp:active { transform: scale(0.98); }
+
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 200;
+    align-items: flex-end;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: #16213e;
+    border-radius: 24px 24px 0 0;
+    padding: 24px 20px 40px;
+    width: 100%;
+  }
+  .modal h2 { font-size: 17px; margin-bottom: 16px; color: #ccc; }
+  .modal label { font-size: 13px; color: #888; display: block; margin-bottom: 6px; }
+  .modal input {
+    width: 100%;
+    background: #0f3460;
+    border: none;
+    border-radius: 12px;
+    padding: 13px 14px;
+    color: white;
+    font-size: 14px;
+    outline: none;
+    margin-bottom: 16px;
+    direction: ltr;
+  }
+  .modal-btns { display: flex; gap: 10px; }
+  .btn-save {
+    flex: 1;
+    background: #e94560;
+    border: none;
+    border-radius: 12px;
+    color: white;
+    font-size: 15px;
+    font-weight: 700;
+    padding: 13px;
+    cursor: pointer;
+  }
+  .btn-cancel {
+    flex: 1;
+    background: #2a2a4a;
+    border: none;
+    border-radius: 12px;
+    color: #aaa;
+    font-size: 15px;
+    padding: 13px;
+    cursor: pointer;
+  }
+
+  .toast {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    background: #333;
+    color: white;
+    padding: 12px 24px;
+    border-radius: 30px;
+    font-size: 14px;
+    transition: transform 0.3s;
+    z-index: 300;
+    white-space: nowrap;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-icon">📦</div>
+  <div>
+    <h1>Product Card Maker</h1>
+    <small>ছবি তুলুন → AI পড়বে → WhatsApp পাঠান</small>
+  </div>
+  <button class="settings-btn" onclick="openSettings()">⚙️</button>
+</div>
+
+<div class="content">
+
+  <!-- STEP 1 -->
+  <div class="step-label">ধাপ ১ — ছবি তুলুন বা আপলোড করুন</div>
+  <div class="upload-row">
+    <div class="upload-box" id="box1" onclick="document.getElementById('img1').click()">
+      <input type="file" id="img1" accept="image/*" capture="environment" onchange="handleImg(this,1)">
+      <div class="upload-placeholder">
+        <div class="icon">📷</div>
+        <div class="title">Product Photo</div>
+        <div class="sub">পণ্যের ছবি</div>
+      </div>
+      <img id="prev1" style="display:none">
+      <div class="upload-overlay">✏️ পরিবর্তন করুন</div>
+    </div>
+    <div class="upload-box" id="box2" onclick="document.getElementById('img2').click()">
+      <input type="file" id="img2" accept="image/*" capture="environment" onchange="handleImg(this,2)">
+      <div class="upload-placeholder">
+        <div class="icon">🏷️</div>
+        <div class="title">Label / Barcode</div>
+        <div class="sub">লেবেলের ছবি</div>
+      </div>
+      <img id="prev2" style="display:none">
+      <div class="upload-overlay">✏️ পরিবর্তন করুন</div>
+    </div>
+  </div>
+
+  <!-- AI SCAN BUTTON -->
+  <button class="btn-ai-scan" id="btnAI" onclick="aiScan()">
+    🤖 AI দিয়ে তথ্য পড়ুন
+  </button>
+  <div class="ai-status" id="aiStatus">
+    <div class="spinner"></div>
+    <span id="aiStatusText">লেবেল পড়া হচ্ছে...</span>
+  </div>
+
+  <!-- STEP 2 -->
+  <div class="step-label">ধাপ ২ — তথ্য চেক করুন / সম্পাদনা করুন</div>
+  <div class="field-group">
+    <div class="field-item">
+      <span class="field-icon">🏷️</span>
+      <input type="text" id="fname" placeholder="Name / اسم المنتج" dir="auto">
+    </div>
+    <div class="field-item">
+      <span class="field-icon">📊</span>
+      <input type="text" id="fbarcode" placeholder="Barcode (e.g. EC127638270)">
+    </div>
+    <div class="field-item">
+      <span class="field-icon">🔢</span>
+      <input type="text" id="fsku" placeholder="Item Code (e.g. AB-345-N)">
+    </div>
+    <div class="field-item">
+      <span class="field-icon">💰</span>
+      <input type="text" id="fprice" placeholder="Price (e.g. SR. 40.25)">
+    </div>
+  </div>
+
+  <!-- STEP 3 -->
+  <button class="btn-generate" onclick="generateCard()">✅ কার্ড তৈরি করুন</button>
+
+  <div class="divider" id="divider" style="display:none">প্রিভিউ</div>
+  <div id="card">
+    <div class="card-images">
+      <img id="cImg1" src="">
+      <img id="cImg2" src="">
+    </div>
+    <div class="card-info">
+      <p id="cText"></p>
+    </div>
+  </div>
+
+  <button class="btn-whatsapp" id="btnWA" onclick="sendWhatsApp()">
+    💬 WhatsApp গ্রুপে পাঠান
+  </button>
+
+</div>
+
+<!-- SETTINGS -->
+<div class="modal-overlay" id="settingsModal" onclick="closeSettings(event)">
+  <div class="modal">
+    <h2>⚙️ সেটিংস</h2>
+    <label>WhatsApp গ্রুপ লিংক</label>
+    <input type="url" id="waLink" placeholder="https://chat.whatsapp.com/...">
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeSettings()">বাতিল</button>
+      <button class="btn-save" onclick="saveSettings()">✅ সেভ করুন</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  const DEFAULT_WA = 'https://chat.whatsapp.com/KR9rnyAI6Dq2XSMaD7nAbR';
+  let waGroup = localStorage.getItem('waGroup') || DEFAULT_WA;
+  let imgData = { 1: '', 2: '' };
+
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  }
+
+  function handleImg(input, num) {
+    const file = input.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      imgData[num] = e.target.result;
+      const prev = document.getElementById('prev' + num);
+      prev.src = e.target.result;
+      prev.style.display = 'block';
+      const box = document.getElementById('box' + num);
+      box.classList.add('has-image');
+      box.querySelector('.upload-placeholder').style.display = 'none';
+    };
+    reader.readAsDataURL(file);
+  }
+
+  // ===== AI SCAN =====
+  async function aiScan() {
+    if (!imgData[2]) {
+      showToast('⚠️ আগে লেবেলের ছবি তুলুন!');
+      return;
+    }
+
+    const btn = document.getElementById('btnAI');
+    const status = document.getElementById('aiStatus');
+    const statusText = document.getElementById('aiStatusText');
+
+    btn.disabled = true;
+    btn.textContent = '⏳ পড়া হচ্ছে...';
+    status.classList.add('show');
+    statusText.textContent = 'AI লেবেল পড়ছে...';
+
+    try {
+      // Extract base64 data (remove data:image/...;base64, prefix)
+      const base64 = imgData[2].split(',')[1];
+      const mimeMatch = imgData[2].match(/data:(image\/\w+);base64/);
+      const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-6',
+          max_tokens: 300,
+          messages: [{
+            role: 'user',
+            content: [
+              {
+                type: 'image',
+                source: { type: 'base64', media_type: mimeType, data: base64 }
+              },
+              {
+                type: 'text',
+                text: `Read this product label image carefully. Extract ONLY these fields and return as JSON:
+{
+  "name": "product name (Arabic or English as shown)",
+  "barcode": "barcode number starting with letters like EC... or numbers only",
+  "sku": "item/product code like AB-345-N",
+  "price": "price with currency like SR. 40.25"
+}
+If a field is not visible, use empty string "". Return ONLY the JSON, nothing else.`
+              }
+            ]
+          }]
+        })
+      });
+
+      const data = await response.json();
+      const text = data.content?.[0]?.text || '';
+
+      // Parse JSON from response
+      const clean = text.replace(/```json|```/g, '').trim();
+      const parsed = JSON.parse(clean);
+
+      // Fill fields
+      if (parsed.name)    { setField('fname', parsed.name); }
+      if (parsed.barcode) { setField('fbarcode', parsed.barcode); }
+      if (parsed.sku)     { setField('fsku', parsed.sku); }
+      if (parsed.price)   { setField('fprice', parsed.price); }
+
+      statusText.textContent = '✅ তথ্য পাওয়া গেছে!';
+      setTimeout(() => status.classList.remove('show'), 2000);
+      showToast('✅ AI তথ্য পড়েছে! চেক করুন।');
+
+    } catch(err) {
+      console.error(err);
+      statusText.textContent = '❌ পড়তে সমস্যা হয়েছে';
+      setTimeout(() => status.classList.remove('show'), 2500);
+      showToast('❌ আবার চেষ্টা করুন');
+    }
+
+    btn.disabled = false;
+    btn.textContent = '🤖 AI দিয়ে তথ্য পড়ুন';
+  }
+
+  function setField(id, value) {
+    const el = document.getElementById(id);
+    el.value = value;
+    el.classList.add('ai-filled');
+    el.addEventListener('input', () => el.classList.remove('ai-filled'), { once: true });
+  }
+
+  // ===== GENERATE =====
+  function generateCard() {
+    const name    = document.getElementById('fname').value.trim();
+    const barcode = document.getElementById('fbarcode').value.trim();
+    const sku     = document.getElementById('fsku').value.trim();
+    const price   = document.getElementById('fprice').value.trim();
+
+    if (!imgData[1] || !imgData[2]) { showToast('⚠️ দুইটা ছবি আপলোড করুন!'); return; }
+    if (!name) { showToast('⚠️ পণ্যের নাম লিখুন!'); return; }
+
+    document.getElementById('cImg1').src = imgData[1];
+    document.getElementById('cImg2').src = imgData[2];
+
+    let text = 'Name: ' + name;
+    if (barcode) text += '\n' + barcode;
+    if (sku)     text += '\n' + sku;
+    if (price)   text += '\n' + price;
+    document.getElementById('cText').innerText = text;
+
+    document.getElementById('card').style.display = 'block';
+    document.getElementById('divider').style.display = 'block';
+    document.getElementById('btnWA').style.display = 'flex';
+
+    setTimeout(() => document.getElementById('card').scrollIntoView({ behavior: 'smooth' }), 100);
+    showToast('✅ কার্ড তৈরি হয়েছে!');
+  }
+
+  // ===== WHATSAPP =====
+  async function sendWhatsApp() {
+    const name    = document.getElementById('fname').value.trim();
+    const barcode = document.getElementById('fbarcode').value.trim();
+    const sku     = document.getElementById('fsku').value.trim();
+    const price   = document.getElementById('fprice').value.trim();
+
+    let msg = 'Name: ' + name;
+    if (barcode) msg += '\n' + barcode;
+    if (sku)     msg += '\n' + sku;
+    if (price)   msg += '\n' + price;
+
+    if (navigator.canShare) {
+      try {
+        const card = document.getElementById('card');
+        const script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+        document.head.appendChild(script);
+        await new Promise(r => script.onload = r);
+        const canvas = await html2canvas(card, { scale: 2, backgroundColor: '#111', useCORS: true });
+        const blob = await new Promise(r => canvas.toBlob(r, 'image/png'));
+        const file = new File([blob], 'product.png', { type: 'image/png' });
+        if (navigator.canShare({ files: [file] })) {
+          await navigator.share({ files: [file], text: msg });
+          setTimeout(() => window.open(waGroup, '_blank'), 600);
+          return;
+        }
+      } catch(e) {}
+    }
+    window.open(waGroup, '_blank');
+    showToast('💬 গ্রুপ খুলছে...');
+  }
+
+  // ===== SETTINGS =====
+  function openSettings() {
+    document.getElementById('waLink').value = waGroup;
+    document.getElementById('settingsModal').classList.add('open');
+  }
+  function closeSettings(e) {
+    if (!e || e.target === document.getElementById('settingsModal'))
+      document.getElementById('settingsModal').classList.remove('open');
+  }
+  function saveSettings() {
+    const val = document.getElementById('waLink').value.trim();
+    if (val && val.startsWith('https://')) {
+      waGroup = val;
+      localStorage.setItem('waGroup', val);
+      showToast('✅ লিংক সেভ হয়েছে!');
+      closeSettings();
+    } else {
+      showToast('⚠️ সঠিক লিংক দিন!');
+    }
+  }
+
+  // ===== TOAST =====
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2500);
+  }
+</script>
+</body>
+</html>
